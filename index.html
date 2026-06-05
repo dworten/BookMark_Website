@@ -265,16 +265,55 @@
       color: #aaa;
     }
 
-    .btn-delete {
-      background: none;
-      color: #ccc;
-      font-size: 1.1rem;
-      padding: 0.2rem 0.4rem;
+    .btn-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
       flex-shrink: 0;
+    }
+
+    .btn-delete, .btn-edit {
+      background: none;
+      font-size: 1rem;
+      padding: 0.2rem 0.4rem;
       transition: color 0.15s;
     }
 
+    .btn-delete { color: #ccc; }
     .btn-delete:hover { color: #e55; }
+
+    .btn-edit { color: #ccc; }
+    .btn-edit:hover { color: #4f8ef7; }
+
+    /* Edit modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      padding: 1.75rem;
+      width: min(480px, 92vw);
+    }
+
+    .modal h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      color: #444;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
 
     .empty-state {
       text-align: center;
@@ -346,6 +385,42 @@
   <div id="bookmark-list"></div>
 </div>
 
+<!-- Edit modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <h2>Edit Bookmark</h2>
+    <form id="edit-form" class="form-grid">
+      <input type="hidden" id="edit-id" />
+      <div>
+        <label for="edit-url">URL</label>
+        <input type="url" id="edit-url" placeholder="https://example.com" required />
+      </div>
+      <div>
+        <label for="edit-title">Title</label>
+        <input type="text" id="edit-title" placeholder="Page title" required />
+      </div>
+      <div>
+        <label for="edit-category">Category</label>
+        <select id="edit-category">
+          <option value="General">General</option>
+          <option value="Work">Work</option>
+          <option value="Design">Design</option>
+          <option value="Development">Development</option>
+          <option value="News">News</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="Reference">Reference</option>
+          <option value="Shopping">Shopping</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="btn-row">
+        <button type="submit" class="btn-primary">Save Changes</button>
+        <button type="button" class="btn-secondary" id="edit-cancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
   const STORAGE_KEY = 'bookmarks_v1';
 
@@ -382,7 +457,10 @@
             <span class="bookmark-date">${formatDate(b.createdAt)}</span>
           </div>
         </div>
-        <button class="btn-delete" data-id="${b.id}" title="Delete">&#x2715;</button>
+        <div class="btn-actions">
+          <button class="btn-edit" data-id="${b.id}" title="Edit">&#x270E;</button>
+          <button class="btn-delete" data-id="${b.id}" title="Delete">&#x2715;</button>
+        </div>
       </div>`;
   }
 
@@ -484,6 +562,45 @@
     const id = btn.dataset.id;
     save(load().filter(b => b.id !== id));
     refresh();
+  });
+
+  // Edit — open modal
+  document.getElementById('bookmark-list').addEventListener('click', e => {
+    const btn = e.target.closest('.btn-edit');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const bookmark = load().find(b => b.id === id);
+    if (!bookmark) return;
+    document.getElementById('edit-id').value = bookmark.id;
+    document.getElementById('edit-url').value = bookmark.url;
+    document.getElementById('edit-title').value = bookmark.title;
+    document.getElementById('edit-category').value = bookmark.category;
+    document.getElementById('edit-modal').classList.add('open');
+    document.getElementById('edit-url').focus();
+  });
+
+  // Edit — save changes
+  document.getElementById('edit-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const id = document.getElementById('edit-id').value;
+    const bookmarks = load().map(b => b.id !== id ? b : {
+      ...b,
+      url: document.getElementById('edit-url').value.trim(),
+      title: document.getElementById('edit-title').value.trim(),
+      category: document.getElementById('edit-category').value,
+    });
+    save(bookmarks);
+    document.getElementById('edit-modal').classList.remove('open');
+    refresh();
+  });
+
+  // Edit — close modal
+  function closeEditModal() {
+    document.getElementById('edit-modal').classList.remove('open');
+  }
+  document.getElementById('edit-cancel').addEventListener('click', closeEditModal);
+  document.getElementById('edit-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeEditModal();
   });
 
   // Search & filter
